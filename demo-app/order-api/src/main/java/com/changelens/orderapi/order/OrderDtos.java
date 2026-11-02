@@ -19,12 +19,11 @@ public final class OrderDtos {
         public String customerId;
         public String sku;
         public int quantity;
-        public OrderStatus status;
         public Instant createdAt;
 
         public Response(Order order) {
             id = order.getId(); customerId = order.getCustomerId(); sku = order.getSku();
-            quantity = order.getQuantity(); status = order.getStatus(); createdAt = order.getCreatedAt();
+            quantity = order.getQuantity(); createdAt = order.getCreatedAt();
         }
     }
 }
