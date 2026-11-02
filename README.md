@@ -41,4 +41,22 @@ python3 load-tests/baseline.py \
   --output artifacts/baseline.json
 ```
 
-Scenario definitions and expected evidence are in `fixtures/scenarios/manifest.json`. The ChangeLens control plane, AI agent, cloud resources, and frontend remain intentionally unimplemented.
+Scenario definitions and expected evidence are in `fixtures/scenarios/manifest.json`.
+
+## Run the ChangeLens control plane
+
+The Phase 3 control plane is a small standard-library Python package. From the repository root, run a scenario without applying its patch:
+
+```bash
+PYTHONPATH=changelens-agent python3 -m changelens run --scenario safe-change
+```
+
+Replace `safe-change` with any scenario name in the manifest. Each run creates ignored artifacts at `artifacts/<run-id>/evidence.json` and `artifacts/<run-id>/report.md`. The report records command output, exit codes, durations, timeouts, unavailable services, test results, security findings, API findings, and load-test metrics when the application is reachable.
+
+Run the Phase 3 unit and integration tests with:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+The integration test runs the infrastructure-security scenario and expects its intentionally unsafe fixture to be detected. The AI analyst, deterministic release policies, GitHub Actions integration, and cloud resources are not implemented yet.
