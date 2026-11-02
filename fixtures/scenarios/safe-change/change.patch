@@ -1,0 +1,15 @@
+diff --git a/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderDtos.java b/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderDtos.java
+--- a/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderDtos.java
++++ b/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderDtos.java
+@@ -20,9 +20,11 @@ public final class OrderDtos {
+         public String sku;
+         public int quantity;
+         public OrderStatus status;
+         public Instant createdAt;
++        public String confirmationMessage;
+
+         public Response(Order order) {
+             id = order.getId(); customerId = order.getCustomerId(); sku = order.getSku();
+             quantity = order.getQuantity(); status = order.getStatus(); createdAt = order.getCreatedAt();
++            confirmationMessage = "order accepted";
+         }

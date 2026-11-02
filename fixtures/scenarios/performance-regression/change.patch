@@ -1,0 +1,11 @@
+diff --git a/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderService.java b/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderService.java
+--- a/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderService.java
++++ b/demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderService.java
+@@ -15,6 +15,6 @@ public class OrderService {
+     public OrderService(OrderRepository orders, InventoryClient inventory) { this.orders = orders; this.inventory = inventory; }
+     public Order create(String customerId, String sku, int quantity) { return orders.save(new Order(customerId, sku, quantity)); }
+     @Transactional(readOnly = true)
+-    public Order get(UUID id) { return orders.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found")); }
++    public Order get(UUID id) { return orders.findAll().stream().filter(order -> order.getId().equals(id)).findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found")); }
+     @Transactional
+     public Order reserve(UUID id) {

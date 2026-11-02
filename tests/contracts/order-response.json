@@ -1,0 +1,3 @@
+{
+  "required": ["id", "customerId", "sku", "quantity", "status", "createdAt"]
+}

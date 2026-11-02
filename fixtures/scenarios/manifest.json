@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "scenarios": [
+    {
+      "name": "safe-change",
+      "category": "safe",
+      "changed_files": ["demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderDtos.java"],
+      "change": "Adds an optional confirmationMessage response field.",
+      "setup": "From a clean checkout, run git apply fixtures/scenarios/safe-change/change.patch.",
+      "expected_outcome": "Existing unit and API tests continue to pass; the additive response change is compatible.",
+      "expected_evidence": ["mvn test exits 0", "The existing required response fields remain present", "The new field is optional for consumers"],
+      "validation_command": "cd demo-app/order-api && mvn test"
+    },
+    {
+      "name": "performance-regression",
+      "category": "performance",
+      "changed_files": ["demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderService.java"],
+      "change": "Replaces indexed findById lookup with a full orders scan and in-memory filter.",
+      "setup": "From a clean checkout, run git apply fixtures/scenarios/performance-regression/change.patch.",
+      "expected_outcome": "Functional tests still pass, but GET order lookups perform a full database read and should worsen under a populated workload.",
+      "expected_evidence": ["The candidate diff replaces findById with findAll", "Baseline and candidate p95/p99 latency can be compared", "Database query behavior is visible in the changed repository call"],
+      "validation_command": "python3 load-tests/baseline.py --base-url http://localhost:8080 --concurrency 4 --duration 30 --output artifacts/performance-regression.json"
+    },
+    {
+      "name": "api-compatibility-regression",
+      "category": "api",
+      "changed_files": ["demo-app/order-api/src/main/java/com/changelens/orderapi/order/OrderDtos.java"],
+      "change": "Removes the required status field from the order response DTO.",
+      "setup": "From a clean checkout, run git apply fixtures/scenarios/api-compatibility-regression/change.patch.",
+      "expected_outcome": "The API contract check fails because the required status response field is missing.",
+      "expected_evidence": ["The candidate diff removes status from OrderDtos.Response", "tests/contracts/order-response.json requires status", "tests/check_openapi_contract.py exits nonzero against the candidate"],
+      "validation_command": "python3 tests/check_openapi_contract.py --base-url http://localhost:8080"
+    },
+    {
+      "name": "reliability-regression",
+      "category": "reliability",
+      "changed_files": ["demo-app/order-api/src/main/java/com/changelens/orderapi/inventory/InventoryClient.java"],
+      "change": "Removes the Inventory client's exception handling so downstream failures escape as server errors.",
+      "setup": "From a clean checkout, run git apply fixtures/scenarios/reliability-regression/change.patch, rebuild the Order API, and start Compose.",
+      "expected_outcome": "When Inventory is unavailable, the baseline returns a persisted RESERVATION_FAILED response while the candidate returns an HTTP 5xx error.",
+      "expected_evidence": ["Baseline InventoryClient catches RestClientException", "The candidate diff removes that catch path", "A reserve request with inventory-mock stopped shows the behavior difference"],
+      "validation_command": "docker compose stop inventory-mock && curl -i -X POST http://localhost:8080/orders/ORDER_ID/reserve"
+    },
+    {
+      "name": "infrastructure-security-regression",
+      "category": "infrastructure-security",
+      "changed_files": ["fixtures/scenarios/infrastructure-security-regression/kubernetes.yaml"],
+      "change": "Adds unsafe Kubernetes settings: host networking, privileged execution, and root user execution.",
+      "setup": "No application change is needed; validate the fixture from a clean checkout.",
+      "expected_outcome": "The deterministic security validator reports each unsafe setting and exits nonzero.",
+      "expected_evidence": ["hostNetwork: true", "securityContext.privileged: true", "runAsUser: 0", "tests/check_security_fixture.py exits nonzero"],
+      "validation_command": "python3 tests/check_security_fixture.py fixtures/scenarios/infrastructure-security-regression/kubernetes.yaml"
+    }
+  ]
+}

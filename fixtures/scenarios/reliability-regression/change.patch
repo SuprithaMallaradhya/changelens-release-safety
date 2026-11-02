@@ -1,0 +1,15 @@
+diff --git a/demo-app/order-api/src/main/java/com/changelens/orderapi/inventory/InventoryClient.java b/demo-app/order-api/src/main/java/com/changelens/orderapi/inventory/InventoryClient.java
+--- a/demo-app/order-api/src/main/java/com/changelens/orderapi/inventory/InventoryClient.java
++++ b/demo-app/order-api/src/main/java/com/changelens/orderapi/inventory/InventoryClient.java
+@@ -18,11 +18,7 @@ public class InventoryClient {
+     }
+
+     public boolean reserve(UUID orderId, String sku, int quantity) {
+-        try {
+             ReserveRequest request = new ReserveRequest(orderId, sku, quantity);
+             ReserveResponse response = restTemplate.postForObject(baseUrl + "/inventory/reservations", request, ReserveResponse.class);
+             return response != null && response.reserved;
+-        } catch (RestClientException ex) {
+-            return false;
+-        }
+     }
