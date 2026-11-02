@@ -1,8 +1,8 @@
 # ChangeLens
 
-ChangeLens is an AI-assisted production-change safety platform. The current repository contains the Phase 1 demo service plus Phase 2 scenario fixtures and a baseline load-test workflow. The small Spring Boot Order API is the system under test; it persists orders in PostgreSQL and reserves inventory through a separate local mock service.
+ChangeLens is an AI-assisted production-change safety platform. The current repository contains the Spring Boot demo service, reproducible scenario fixtures, the Python control plane, deterministic policy evaluation, and a GitHub Actions pull-request workflow. The small Spring Boot Order API is the system under test; it persists orders in PostgreSQL and reserves inventory through a separate local mock service.
 
-The Phase 1 application lives in [`demo-app/order-api/`](demo-app/order-api/). Future ChangeLens components have reserved top-level directories but are not implemented yet.
+The demo application lives in [`demo-app/order-api/`](demo-app/order-api/), and the control plane lives in [`changelens-agent/`](changelens-agent/). Cloud resources, frontend work, and autonomous deployment remain out of scope.
 
 ## Run locally
 
@@ -87,4 +87,28 @@ Run all tests, including policy and analyst tests, with:
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Rollback is proposed as text only. ChangeLens does not execute rollback, deploy candidates, or integrate with GitHub Actions yet. See [`changelens-agent/README.md`](changelens-agent/README.md) and [`docs/ai-evidence-safety.md`](docs/ai-evidence-safety.md) for details.
+Rollback is proposed as text only. ChangeLens does not execute rollback or deploy candidates. See [`changelens-agent/README.md`](changelens-agent/README.md) and [`docs/ai-evidence-safety.md`](docs/ai-evidence-safety.md) for details.
+
+## Pull-request workflow
+
+The [`ChangeLens pull-request safety`](.github/workflows/changelens.yml) workflow runs on opened, reopened, and synchronized pull requests. It sets up Python and Java, runs the Phase 1–4 tests, runs the control plane, uploads `artifacts/` as a workflow artifact, and publishes a concise report in the GitHub Actions workflow summary.
+
+The workflow uses the mock analyst by default and requires no API key or cloud credentials. `APPROVE` succeeds, `REVIEW` succeeds with a human-review warning, and `BLOCK` uploads the evidence first and then fails the required check. The workflow currently runs the selected manifest scenario (`safe-change` by default) because the local control plane does not yet analyze arbitrary pull-request diffs or apply candidate patches. `workflow_dispatch` allows selecting another documented scenario without modifying the repository.
+
+To inspect a result, open the pull request's **Checks** tab and select the workflow summary. To download the full `evidence.json` and `report.md`, open the workflow run and download `changelens-evidence-<run-id>` under **Artifacts**. The workflow has only `contents: read` permission because it uses the workflow summary rather than posting a pull-request comment.
+
+The first test pull requests should cover:
+
+1. the safe-change fixture;
+2. the performance-regression fixture;
+3. the api-compatibility-regression fixture;
+4. the infrastructure-security-regression fixture.
+
+The same local workflow checks can be run with:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
+cd demo-app/order-api && mvn test
+cd ../..
+PYTHONPATH=changelens-agent python3 -m changelens run --scenario safe-change
+```

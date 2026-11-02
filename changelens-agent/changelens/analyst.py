@@ -94,11 +94,14 @@ def analyze(report: EvidenceReport, policy: PolicyResult, scenario_summary: str 
 
 
 def provider_from_environment() -> AnalystProvider:
+    provider = os.environ.get("CHANGELENS_MODEL_PROVIDER", "mock").strip().lower()
+    if provider == "mock":
+        return MockProvider()
     endpoint = os.environ.get("CHANGELENS_MODEL_ENDPOINT", "").strip()
     if endpoint:
         return OpenAICompatibleProvider(endpoint, os.environ.get("CHANGELENS_MODEL", "local-model"),
                                         os.environ.get("CHANGELENS_MODEL_API_KEY", ""))
-    return MockProvider()
+    raise OSError("no explicitly configured analyst provider endpoint")
 
 
 def build_model_input(report: EvidenceReport, policy: PolicyResult, scenario_summary: str) -> Dict[str, Any]:

@@ -1,0 +1,198 @@
+name: ChangeLens pull-request safety
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Manifest scenario to evaluate"
+        required: false
+        default: safe-change
+        type: choice
+        options:
+          - safe-change
+          - performance-regression
+          - api-compatibility-regression
+          - reliability-regression
+          - infrastructure-security-regression
+
+permissions:
+  contents: read
+
+jobs:
+  changelens:
+    name: Run ChangeLens evidence checks
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: changelens-agent
+      CHANGELENS_MODEL_PROVIDER: mock
+      SCENARIO: ${{ inputs.scenario || 'safe-change' }}
+      PR_IDENTIFIER: ${{ github.event.pull_request.number || 'manual' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '11'
+          cache: maven
+
+      - name: Verify tool versions
+        run: |
+          set -euo pipefail
+          python --version
+          java -version
+          mvn --version
+
+      - name: Install project dependencies
+        working-directory: demo-app/order-api
+        run: mvn dependency:go-offline -B
+
+      - name: Run Phase 1 tests
+        working-directory: demo-app/order-api
+        run: mvn test
+
+      - name: Run Phase 2 tests
+        run: python -m unittest tests.test_phase2_scenarios
+
+      - name: Run Phase 3 tests
+        run: python -m unittest tests.test_phase3_control_plane
+
+      - name: Run Phase 4 tests
+        run: python -m unittest tests.test_phase4_policy_analyst
+
+      - name: Run ChangeLens
+        id: run_changelens
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          output_file="$RUNNER_TEMP/changelens-cli-output.json"
+          set +e
+          python -m changelens run --scenario "$SCENARIO" > "$output_file"
+          cli_status=$?
+          set -e
+          echo "cli_exit_code=$cli_status" >> "$GITHUB_OUTPUT"
+          if ! test -s "$output_file"; then
+            echo "ChangeLens did not produce a result." >&2
+            exit "$cli_status"
+          fi
+          python - "$output_file" <<'PY'
+          import json
+          import os
+          import sys
+
+          paths = json.load(open(sys.argv[1]))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"evidence_path={paths['evidence']}\n")
+              output.write(f"report_path={paths['report']}\n")
+          PY
+
+      - name: Publish ChangeLens summary
+        if: always()
+        env:
+          EVIDENCE_PATH: ${{ steps.run_changelens.outputs.evidence_path }}
+          REPORT_PATH: ${{ steps.run_changelens.outputs.report_path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EVIDENCE_PATH:-}" ] || [ ! -f "$EVIDENCE_PATH" ]; then
+            {
+              echo "## ChangeLens"
+              echo
+              echo "The control plane did not produce an evidence report. Inspect the failed workflow step."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python - "$EVIDENCE_PATH" "$REPORT_PATH" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import os
+          import sys
+
+          evidence = json.load(open(sys.argv[1]))
+          policy = evidence.get("policy", {})
+          ai = evidence.get("ai_analysis", {})
+          print("## ChangeLens")
+          print()
+          print(f"- Pull request: `{os.environ.get('PR_IDENTIFIER', 'unknown')}`")
+          print(f"- Scenario: `{evidence.get('scenario', 'unknown')}`")
+          print(f"- Commit: `{evidence.get('commit_sha', 'unknown')}`")
+          print(f"- Deterministic policy: **{policy.get('status', 'UNKNOWN')}**")
+          print(f"- AI decision: **{ai.get('decision', 'UNKNOWN')}** ({ai.get('provider', 'unknown')})")
+          print()
+          print("### Changed files")
+          for path in evidence.get("changed_files", []):
+              print(f"- `{path}`")
+          print()
+          print("### Test and finding summary")
+          print(f"- Tests: `{evidence.get('tests', {})}`")
+          print(f"- Security findings: `{evidence.get('security_findings', [])}`")
+          print(f"- API findings: `{evidence.get('api_findings', [])}`")
+          print(f"- Performance: `{evidence.get('performance', {})}`")
+          print()
+          print("### Explanation")
+          print(ai.get("summary", "No AI summary available."))
+          print()
+          print("### Recommended action")
+          print(ai.get("recommended_action", "No recommendation available."))
+          print()
+          print("### Rollback plan")
+          for item in ai.get("rollback_plan", []):
+              print(f"- {item}")
+          print()
+          print("### Limitations")
+          for item in ai.get("limitations", []) + evidence.get("errors", []):
+              print(f"- {item}")
+          print()
+          print(f"Full Markdown report: `{sys.argv[2]}`")
+          print("Evidence JSON and Markdown reports are uploaded as the workflow artifact.")
+          PY
+
+      - name: Upload ChangeLens reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelens-evidence-${{ github.run_id }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce deterministic policy
+        if: always()
+        env:
+          EVIDENCE_PATH: ${{ steps.run_changelens.outputs.evidence_path }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EVIDENCE_PATH:-}" ] || [ ! -f "$EVIDENCE_PATH" ]; then
+            echo "No evidence report was produced; failing the required check." >&2
+            exit 1
+          fi
+          policy_status="$(python - "$EVIDENCE_PATH" <<'PY'
+          import json
+          import sys
+          print(json.load(open(sys.argv[1])).get("policy", {}).get("status", "UNKNOWN"))
+          PY
+          )"
+          case "$policy_status" in
+            APPROVE)
+              echo "ChangeLens policy approved the change."
+              ;;
+            REVIEW)
+              echo "ChangeLens policy requires human review; workflow remains successful."
+              ;;
+            BLOCK)
+              echo "ChangeLens policy blocked the change." >&2
+              exit 1
+              ;;
+            *)
+              echo "Unknown deterministic policy status: $policy_status" >&2
+              exit 1
+              ;;
+          esac
