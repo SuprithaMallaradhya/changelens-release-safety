@@ -112,3 +112,33 @@ cd demo-app/order-api && mvn test
 cd ../..
 PYTHONPATH=changelens-agent python3 -m changelens run --scenario safe-change
 ```
+
+## Reproducible setup
+
+From a fresh checkout:
+
+```bash
+git clone <repository-url>
+cd changelens-release-safety
+python3 --version
+java -version
+mvn --version
+docker version
+docker compose version
+```
+
+The expected local shape is Python 3.10+ for the standard-library control plane, Java 11+ for the Spring Boot application, Maven, and Docker Compose. Record the actual versions with each benchmark. PostgreSQL runs from the `postgres:16-alpine` image declared in the Compose file. The project has no Python dependency installation step; Maven resolves the Java dependencies.
+
+For a reproducible benchmark, record the operating system, CPU/memory, tool versions, application commit, baseline and candidate definitions, concurrency, duration, p50/p95/p99 latency, throughput, and error rate. Use [`docs/benchmark-template.md`](docs/benchmark-template.md) and [`docs/evaluation.md`](docs/evaluation.md); do not compare runs made under different workloads or environments without documenting the difference.
+
+## Current status
+
+- Completed: demo application, five reproducible scenarios, fixed local load test, evidence-producing control plane, deterministic policy engine, provider-neutral analyst, and pull-request GitHub Actions workflow.
+- Supported scenarios: safe change, performance regression, API compatibility regression, reliability regression, and infrastructure/security regression.
+- Local limitation: the control plane validates named scenario patches and does not yet derive or apply arbitrary pull-request candidates.
+- Runtime limitation: live API/load evidence requires the Docker Compose stack; otherwise the report records unavailable checks and policy generally returns `REVIEW`.
+- Cloud status: no AWS, Azure, or Google Cloud resources are included.
+- AI status: deterministic mock mode is the default; an explicitly configured OpenAI-compatible provider is optional and cannot override policy.
+- Known limitations: rollback is proposed but never executed; performance results are environment-dependent; the security validator is intentionally small; GitHub uses a workflow summary and artifact rather than a pull-request comment.
+
+See [`docs/architecture.md`](docs/architecture.md), [`docs/demo-script.md`](docs/demo-script.md), [`docs/evaluation.md`](docs/evaluation.md), and [`docs/limitations.md`](docs/limitations.md) for the portfolio walkthrough and honest evaluation boundary.

@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import shlex
 import subprocess
+import tempfile
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from .models import ToolResult, ToolStatus
+
+
+MAX_CAPTURE_CHARS = 20000
 
 
 def run_command(
@@ -21,30 +25,37 @@ def run_command(
     command = shlex.join(args)
     started = time.monotonic()
     try:
-        completed = subprocess.run(
-            args,
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
+        # Temporary files keep a noisy tool from growing Python's memory usage
+        # without bound while retaining a useful prefix for the report.
+        with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+            process = subprocess.Popen(args, cwd=str(cwd), stdout=stdout_file, stderr=stderr_file,
+                                       text=False, close_fds=True)
+            timed_out = False
+            try:
+                process.wait(timeout=timeout_seconds)
+            except subprocess.TimeoutExpired:
+                timed_out = True
+                process.kill()
+                process.wait()
+            stdout, stdout_truncated = _read_limited(stdout_file)
+            stderr, stderr_truncated = _read_limited(stderr_file)
         duration_ms = int((time.monotonic() - started) * 1000)
-        status = ToolStatus.PASSED if completed.returncode == 0 else ToolStatus.FAILED
-        return ToolResult(name, command, status, completed.returncode, duration_ms,
-                          completed.stdout, completed.stderr)
+        if timed_out:
+            return ToolResult(name, command, ToolStatus.TIMED_OUT, None, duration_ms, stdout, stderr,
+                              True, stdout_truncated, stderr_truncated)
+        status = ToolStatus.PASSED if process.returncode == 0 else ToolStatus.FAILED
+        return ToolResult(name, command, status, process.returncode, duration_ms, stdout, stderr,
+                          False, stdout_truncated, stderr_truncated)
     except FileNotFoundError as exc:
         return ToolResult(name, command, ToolStatus.UNAVAILABLE, None,
                           int((time.monotonic() - started) * 1000), "", str(exc))
-    except subprocess.TimeoutExpired as exc:
-        stdout = _as_text(exc.stdout)
-        stderr = _as_text(exc.stderr)
-        return ToolResult(name, command, ToolStatus.TIMED_OUT, None,
-                          int((time.monotonic() - started) * 1000), stdout, stderr,
-                          timed_out=True)
+    except OSError as exc:
+        return ToolResult(name, command, ToolStatus.UNAVAILABLE, None,
+                          int((time.monotonic() - started) * 1000), "", str(exc))
 
 
-def _as_text(value: Optional[object]) -> str:
-    if value is None:
-        return ""
-    return value.decode() if isinstance(value, bytes) else str(value)
+def _read_limited(stream) -> tuple[str, bool]:
+    stream.seek(0)
+    data = stream.read(MAX_CAPTURE_CHARS * 4 + 1)
+    truncated = len(data) > MAX_CAPTURE_CHARS * 4
+    return data[:MAX_CAPTURE_CHARS * 4].decode(errors="replace")[:MAX_CAPTURE_CHARS], truncated

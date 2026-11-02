@@ -104,18 +104,15 @@ The demo application is a controlled system under test, not the primary portfoli
 
 ### ChangeLens control plane
 
-The control plane is implemented in Python and exposes a CLI or FastAPI interface for running an assessment. It invokes tools, captures evidence, evaluates policies, calls the AI analyst, and produces reports.
+The control plane is implemented in Python as a CLI for running an assessment. It invokes the currently implemented local tools, captures evidence, evaluates policies, calls the mock or explicitly configured analyst, and produces reports. A FastAPI interface remains future work.
 
 ### Deterministic tools
 
 - Maven/Spring tests
 - OpenAPI contract checks
-- k6 or Locust load tests
-- Trivy container scanning
-- Semgrep code scanning
-- Checkov Terraform scanning
-- OPA/Rego policy evaluation
-- OpenTelemetry and Prometheus metrics
+- dependency-free Python load test
+- small deterministic Kubernetes fixture validator
+- future Trivy, Semgrep, Checkov, OPA/Rego, and OpenTelemetry integrations
 
 ### AI agent
 
@@ -213,14 +210,14 @@ ChangeLens is not:
 - a simple Terraform parser;
 - an LLM wrapper that invents deployment decisions.
 
-Its distinctive feature is the combination of:
+Its intended distinctive feature is the combination of:
 
 1. deterministic engineering checks;
-2. controlled candidate deployment;
-3. runtime evidence;
+2. reproducible local scenario evidence;
+3. optional live health and load evidence;
 4. AI-assisted cross-signal analysis;
 5. approval-gated release policy;
-6. rollback verification.
+6. proposed, non-executing rollback guidance.
 
 The AI reduces the human effort required to interpret fragmented engineering evidence, while deterministic tools protect correctness.
 
@@ -315,23 +312,23 @@ The application is deliberately controlled so regressions are reproducible. The 
 
 **ChangeLens — AI-Powered Production Change Safety Platform**
 
-Built an AI-assisted release-engineering platform that combines code analysis, security scanning, API compatibility checks, infrastructure policy, synthetic load testing, and runtime telemetry to produce approval-gated deployment decisions and rollback plans.
+Built a local-first AI-assisted release-safety platform that combines scenario analysis, Maven tests, API checks, security fixture validation, optional load testing, and deterministic policy to produce evidence-backed release decisions.
 
 ### Resume bullets
 
-- Built ChangeLens, an AI-assisted release safety platform that correlated code diffs, test results, security scans, API contracts, infrastructure policies, and runtime telemetry before deployment.
-- Deployed candidate Spring Boot service versions in Docker/Kubernetes and compared OpenTelemetry/Prometheus metrics under synthetic load, detecting `[N]/[N]` intentionally injected regressions.
-- Integrated Trivy, Semgrep, Checkov, OPA/Rego, and GitHub Actions to enforce security, API compatibility, and infrastructure quality gates on pull requests.
+- Built ChangeLens, a local-first AI-assisted release-safety platform that correlates scenario patches, test results, API contracts, security findings, and optional load evidence.
+- Created five reproducible safe and regression fixtures and a standard-library control plane that emits versioned JSON/Markdown evidence reports.
+- Integrated GitHub Actions to run the local checks on pull requests, upload reports, and enforce deterministic `APPROVE`/`REVIEW`/`BLOCK` policy outcomes.
 - Implemented a structured AI evidence analyst that generated release explanations, affected-component analysis, and rollback plans without allowing model output to override deterministic policy gates.
-- Measured `[baseline p95]` ms versus `[candidate p95]` ms latency, `[measured throughput]` requests/sec, and `[measured detection time]` regression-detection latency across `[N]` release scenarios.
+- Measured `[baseline p95]` ms versus `[candidate p95]` ms latency and `[measured throughput]` requests/sec only when the documented local workload and environment are available.
 
 ### Compact one-line version
 
-AI-powered release safety platform combining deterministic CI/CD, security, performance, observability, and rollback analysis for microservice deployments.
+AI-assisted release safety platform combining deterministic checks, evidence reports, policy gates, and human-readable analysis for a local microservice demo.
 
 ## Portfolio description
 
-ChangeLens treats software delivery as an evidence problem. Before a release is promoted, it combines what changed, what tests found, what security scanners detected, how the candidate behaves under load, and which services may be affected. An AI agent turns that evidence into an understandable release assessment, while deterministic policies keep the final decision safe and reproducible.
+ChangeLens treats software delivery as an evidence problem. Before a release is promoted, it combines what changed, what local checks found, and—when the demo stack is running—how the service behaves under a fixed workload. An analyst turns that evidence into an understandable release assessment, while deterministic policies keep the final decision reproducible.
 
 ## Honest limitations
 

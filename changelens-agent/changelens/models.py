@@ -30,11 +30,28 @@ class ToolResult:
     stdout: str = ""
     stderr: str = ""
     timed_out: bool = False
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         value = asdict(self)
         value["status"] = self.status.value
         return value
+
+
+EVIDENCE_FIELDS = (
+    "schema_version", "run_id", "scenario", "commit_sha", "changed_files", "tools",
+    "tests", "security_findings", "api_findings", "performance", "errors",
+)
+
+
+def validate_evidence_payload(payload: Any) -> None:
+    """Reject incomplete untyped evidence before it reaches an analyst."""
+    if not isinstance(payload, dict):
+        raise ValueError("evidence payload must be an object")
+    missing = [field for field in EVIDENCE_FIELDS if field not in payload]
+    if missing:
+        raise ValueError("evidence payload is missing: " + ", ".join(missing))
 
 
 @dataclass

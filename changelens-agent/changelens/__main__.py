@@ -64,10 +64,11 @@ def main() -> int:
     add(run_load_test(root, args.base_url, load_output, max(args.timeout, 45)) if health.status == ToolStatus.PASSED else
         _unavailable("baseline-load-test", "application health check did not pass"))
     if load_output.exists():
-        try:
-            report.performance = json.loads(load_output.read_text())
-        except json.JSONDecodeError as exc:
-            report.errors.append(f"baseline-load-test output could not be parsed: {exc}")
+        performance = load_performance_metrics(load_output)
+        if performance is None:
+            report.errors.append("baseline-load-test output was missing or malformed JSON")
+        else:
+            report.performance = performance
     policy = evaluate(report)
     report.policy = policy.to_dict()
     report.ai_analysis = analyze(report, policy, scenario.expected_outcome).to_dict()
@@ -83,6 +84,15 @@ def main() -> int:
 def _unavailable(name: str, reason: str):
     from .models import ToolResult
     return ToolResult(name, "not run", ToolStatus.UNAVAILABLE, None, 0, "", reason)
+
+
+def load_performance_metrics(path: Path):
+    """Read load-test JSON without allowing malformed output to crash reporting."""
+    try:
+        value = json.loads(path.read_text())
+        return value if isinstance(value, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 if __name__ == "__main__":

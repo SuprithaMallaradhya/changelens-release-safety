@@ -10,7 +10,7 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Protocol
 
-from .models import AIAnalysis, Decision, EvidenceReport, PolicyResult
+from .models import AIAnalysis, Decision, EvidenceReport, PolicyResult, validate_evidence_payload
 
 
 PROMPT_VERSION = "1.0"
@@ -75,7 +75,7 @@ class OpenAICompatibleProvider:
         if self.api_key:
             request.add_header("Authorization", "Bearer " + self.api_key)
         with urllib.request.urlopen(request, timeout=30) as response:
-            document = json.loads(response.read().decode())
+            document = json.loads(response.read(1_000_001).decode())
         content = document["choices"][0]["message"]["content"]
         return json.loads(content) if isinstance(content, str) else content
 
@@ -106,9 +106,11 @@ def provider_from_environment() -> AnalystProvider:
 
 def build_model_input(report: EvidenceReport, policy: PolicyResult, scenario_summary: str) -> Dict[str, Any]:
     factual = report.to_dict()
+    validate_evidence_payload(factual)
     for tool in factual["tools"]:
         tool["stdout"] = _sanitize(tool.get("stdout", ""))[:2000]
         tool["stderr"] = _sanitize(tool.get("stderr", ""))[:2000]
+        tool["command"] = _sanitize(tool.get("command", ""))[:500]
     payload = {
         "scenario_summary": scenario_summary,
         "changed_files": report.changed_files,
@@ -123,6 +125,19 @@ def build_model_input(report: EvidenceReport, policy: PolicyResult, scenario_sum
     if len(serialized) > MAX_EVIDENCE_CHARS:
         payload["tools"] = [{key: value for key, value in tool.items() if key not in {"stdout", "stderr"}}
                              for tool in payload["tools"]]
+        payload["security_findings"] = payload["security_findings"][:50]
+        payload["api_findings"] = payload["api_findings"][:50]
+        payload["changed_files"] = payload["changed_files"][:100]
+    if len(json.dumps(payload)) > MAX_EVIDENCE_CHARS:
+        payload = {
+            "scenario_summary": scenario_summary[:1000],
+            "changed_files": payload["changed_files"][:20],
+            "policy": payload["policy"],
+            "security_findings": payload["security_findings"][:20],
+            "api_findings": payload["api_findings"][:20],
+            "performance": payload["performance"],
+            "evidence_truncated": True,
+        }
     return payload
 
 
@@ -132,8 +147,14 @@ def validate_output(raw: Dict[str, Any], report: EvidenceReport, policy: PolicyR
                 "prioritized_findings", "recommended_action", "rollback_plan", "limitations")
     if not isinstance(raw, dict) or any(field not in raw for field in required):
         raise ValueError("analyst output is missing required fields")
+    if not isinstance(raw["summary"], str) or not isinstance(raw["recommended_action"], str):
+        raise ValueError("analyst text fields must be strings")
+    list_fields = ("affected_components", "evidence_references", "prioritized_findings", "rollback_plan", "limitations")
+    if any(not isinstance(raw[field], list) or any(not isinstance(item, str) for item in raw[field])
+           for field in list_fields):
+        raise ValueError("analyst list fields must contain strings")
     decision = Decision(raw["decision"])
-    if not 0 <= float(raw["confidence"]) <= 1:
+    if isinstance(raw["confidence"], bool) or not isinstance(raw["confidence"], (int, float)) or not 0 <= raw["confidence"] <= 1:
         raise ValueError("confidence must be between 0 and 1")
     refs = list(raw["evidence_references"])
     unsupported = unsupported_references(refs, report, policy)

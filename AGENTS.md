@@ -2,11 +2,11 @@
 
 ## Current scope
 
-Phase 1 is complete and must remain behaviorally stable. Phase 2 adds reproducible scenario fixtures and a baseline load test without changing the baseline application. The Spring Boot demo application, PostgreSQL configuration, mock Inventory service, Docker files, Maven configuration, resources, and tests are under `demo-app/order-api/`.
+Phases 1–5 are complete and must remain behaviorally stable. Phase 2 adds reproducible scenario fixtures and a baseline load test; Phase 3 adds the control plane; Phase 4 adds policy and analyst output; Phase 5 adds GitHub Actions. The Spring Boot demo application, PostgreSQL configuration, mock Inventory service, Docker files, Maven configuration, resources, and tests are under `demo-app/order-api/`.
 
 Run Phase 1 tests with `cd demo-app/order-api && mvn test`. Start the local stack with `cd demo-app/order-api && docker compose up --build`.
 
-Do not implement the ChangeLens control plane, AI agent, cloud resources, or Phase 3+ work unless explicitly requested. Keep scenario patches outside the baseline application source.
+Do not change the Spring Boot application behavior, add cloud resources, deploy automatically, or execute rollback. Keep scenario patches outside the baseline application source. Generated evidence under `artifacts/` is ignored.
 
 ## Layout
 

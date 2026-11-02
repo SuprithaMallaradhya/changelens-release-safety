@@ -69,6 +69,8 @@ class Phase3ControlPlaneTests(unittest.TestCase):
         evidence = json.loads(Path(paths["evidence"]).read_text())
         self.assertEqual(evidence["scenario"], "infrastructure-security-regression")
         self.assertEqual(len(evidence["security_findings"]), 3)
+        self.assertEqual(evidence["policy"]["status"], "BLOCK")
+        self.assertEqual(evidence["ai_analysis"]["decision"], "BLOCK")
         self.assertTrue(Path(paths["report"]).exists())
 
 
