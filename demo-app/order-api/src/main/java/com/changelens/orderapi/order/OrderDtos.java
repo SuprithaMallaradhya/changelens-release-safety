@@ -21,10 +21,12 @@ public final class OrderDtos {
         public int quantity;
         public OrderStatus status;
         public Instant createdAt;
+        public String confirmationMessage;
 
         public Response(Order order) {
             id = order.getId(); customerId = order.getCustomerId(); sku = order.getSku();
             quantity = order.getQuantity(); status = order.getStatus(); createdAt = order.getCreatedAt();
+            confirmationMessage = "order accepted";
         }
     }
 }
