@@ -9,7 +9,9 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .models import EvidenceReport, ToolStatus
+from .models import Decision, EvidenceReport, ToolStatus
+from .analyst import analyze
+from .policy import evaluate
 from .report import write_json, write_markdown
 from .scenarios import load_manifest, scenario_changed_files
 from .tools import (analyze_scenario, check_health, enrich_report, run_api_contract,
@@ -66,12 +68,16 @@ def main() -> int:
             report.performance = json.loads(load_output.read_text())
         except json.JSONDecodeError as exc:
             report.errors.append(f"baseline-load-test output could not be parsed: {exc}")
+    policy = evaluate(report)
+    report.policy = policy.to_dict()
+    report.ai_analysis = analyze(report, policy, scenario.expected_outcome).to_dict()
     write_json(report, artifact_dir / "evidence.json")
     write_markdown(report, scenario, artifact_dir / "report.md")
     print(json.dumps({"run_id": run_id, "evidence": str(artifact_dir / "evidence.json"),
                       "report": str(artifact_dir / "report.md")}, indent=2))
-    return 0 if not any(tool.status in (ToolStatus.FAILED, ToolStatus.TIMED_OUT, ToolStatus.UNAVAILABLE)
-                        for tool in report.tools) else 1
+    tool_failure = any(tool.status in (ToolStatus.FAILED, ToolStatus.TIMED_OUT, ToolStatus.UNAVAILABLE)
+                       for tool in report.tools)
+    return 0 if policy.status == Decision.APPROVE and not tool_failure else 1
 
 
 def _unavailable(name: str, reason: str):

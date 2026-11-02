@@ -59,4 +59,32 @@ Run the Phase 3 unit and integration tests with:
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-The integration test runs the infrastructure-security scenario and expects its intentionally unsafe fixture to be detected. The AI analyst, deterministic release policies, GitHub Actions integration, and cloud resources are not implemented yet.
+The integration test runs the infrastructure-security scenario and expects its intentionally unsafe fixture to be detected.
+
+## Evaluate policy and evidence explanations
+
+The control-plane run now evaluates deterministic release rules and adds an evidence-grounded analyst section to the same reports. The mock analyst is the default and requires no API key:
+
+```bash
+PYTHONPATH=changelens-agent python3 -m changelens run --scenario safe-change
+```
+
+The report contains a deterministic `APPROVE`, `REVIEW`, or `BLOCK` decision, triggered rules, thresholds, measured values, evidence references, an explanation, and a proposed rollback plan. The policy result is authoritative. The analyst cannot turn a deterministic `BLOCK` into `APPROVE`, and its output never replaces factual tool results.
+
+An optional OpenAI-compatible JSON endpoint is used only when explicitly configured:
+
+```bash
+CHANGELENS_MODEL_ENDPOINT=http://localhost:8000/v1/chat/completions \
+CHANGELENS_MODEL=local-model \
+PYTHONPATH=changelens-agent python3 -m changelens run --scenario safe-change
+```
+
+`CHANGELENS_MODEL_API_KEY` may be supplied for providers that require it; it is never written to reports. If the provider is unavailable or returns invalid JSON, ChangeLens preserves the deterministic decision and writes a fallback explanation.
+
+Run all tests, including policy and analyst tests, with:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_*.py'
+```
+
+Rollback is proposed as text only. ChangeLens does not execute rollback, deploy candidates, or integrate with GitHub Actions yet. See [`changelens-agent/README.md`](changelens-agent/README.md) and [`docs/ai-evidence-safety.md`](docs/ai-evidence-safety.md) for details.

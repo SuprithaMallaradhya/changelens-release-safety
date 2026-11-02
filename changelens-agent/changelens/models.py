@@ -14,6 +14,12 @@ class ToolStatus(str, Enum):
     UNAVAILABLE = "unavailable"
 
 
+class Decision(str, Enum):
+    APPROVE = "APPROVE"
+    REVIEW = "REVIEW"
+    BLOCK = "BLOCK"
+
+
 @dataclass
 class ToolResult:
     name: str
@@ -44,8 +50,67 @@ class EvidenceReport:
     api_findings: List[str] = field(default_factory=list)
     performance: Dict[str, Any] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
+    policy: Dict[str, Any] = field(default_factory=dict)
+    ai_analysis: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         value = asdict(self)
         value["tools"] = [tool.to_dict() for tool in self.tools]
+        return value
+
+
+@dataclass
+class PolicyReason:
+    rule: str
+    message: str
+    observed: Any
+    threshold: Any = None
+    unit: str = ""
+    evidence_references: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class PolicyResult:
+    status: Decision
+    policy_version: str
+    triggered_rules: List[str] = field(default_factory=list)
+    measured_values: Dict[str, Any] = field(default_factory=dict)
+    thresholds: Dict[str, Any] = field(default_factory=dict)
+    reasons: List[PolicyReason] = field(default_factory=list)
+    evidence_references: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "status": self.status.value,
+            "policy_version": self.policy_version,
+            "triggered_rules": self.triggered_rules,
+            "measured_values": self.measured_values,
+            "thresholds": self.thresholds,
+            "reasons": [reason.to_dict() for reason in self.reasons],
+            "evidence_references": self.evidence_references,
+        }
+
+
+@dataclass
+class AIAnalysis:
+    summary: str
+    decision: Decision
+    confidence: float
+    affected_components: List[str]
+    evidence_references: List[str]
+    prioritized_findings: List[str]
+    recommended_action: str
+    rollback_plan: List[str]
+    limitations: List[str]
+    provider: str
+    model: str
+    prompt_version: str
+    generated_at: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        value = asdict(self)
+        value["decision"] = self.decision.value
         return value

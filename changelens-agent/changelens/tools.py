@@ -22,6 +22,9 @@ def analyze_scenario(root: Path, scenario: Scenario, timeout: int) -> ToolResult
         relative_patch = patch.relative_to(root)
         result = run_command("scenario-patch-check", ["git", "apply", "--check", str(relative_patch)], root, timeout)
         result.stdout = (result.stdout + "\nchanged files: " + ", ".join(scenario_changed_files(scenario))).strip()
+        patch_text = patch.read_text()
+        if "-        public OrderStatus status;" in patch_text:
+            result.stdout += "\napi finding: required response field status removed"
         return result
     fixture = scenario.directory / "kubernetes.yaml"
     if fixture.exists():
@@ -86,6 +89,9 @@ def enrich_report(report: EvidenceReport, result: ToolResult) -> None:
             report.tests.update({"run": int(match.group(1)), "failed": int(match.group(2)),
                                  "errors": int(match.group(3)), "skipped": int(match.group(4))})
     elif result.name == "security-fixture-validator":
-        report.security_findings = [line[2:] for line in result.stdout.splitlines() if line.startswith("- ")]
+        report.security_findings.extend(line[2:] for line in result.stdout.splitlines() if line.startswith("- "))
     elif result.name == "api-contract-check":
-        report.api_findings = [line for line in result.stdout.splitlines() if line.strip()]
+        report.api_findings.extend(line for line in result.stdout.splitlines() if line.strip())
+    elif result.name == "scenario-patch-check":
+        report.api_findings.extend(line.removeprefix("api finding: ").strip()
+                                   for line in result.stdout.splitlines() if line.startswith("api finding:"))
