@@ -1,0 +1,13 @@
+spring:
+  application.name: order-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/orders}
+    username: ${SPRING_DATASOURCE_USERNAME:orders}
+    password: ${SPRING_DATASOURCE_PASSWORD:orders}
+  jpa:
+    hibernate.ddl-auto: update
+    open-in-view: false
+management:
+  endpoints.web.exposure.include: health,info,metrics
+  endpoint.health.show-details: always
+inventory.base-url: ${INVENTORY_BASE_URL:http://localhost:8081}
