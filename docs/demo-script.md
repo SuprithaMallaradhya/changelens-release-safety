@@ -38,6 +38,17 @@ python3 -m changelens run --scenario api-compatibility-regression
 
 Show the static patch evidence that removes the required `status` field, the deterministic `BLOCK`, and the analyst explanation that also remains `BLOCK`.
 
+For actual pull-request analysis, use committed branches instead of a manifest scenario:
+
+```bash
+PYTHONPATH=changelens-agent python3 -m changelens analyze-diff \
+  --base-ref main --head-ref test/safe-change
+PYTHONPATH=changelens-agent python3 -m changelens analyze-diff \
+  --base-ref main --head-ref test/api-breaking-change-v2
+```
+
+The first report should say `Analysis mode: pull_request`, list the real changed files, and produce `APPROVE`. The second should identify `OrderDtos.java` and produce `BLOCK`. Runtime checks that are not started are shown as skipped.
+
 ## 4. Inspect reports
 
 For the run ID printed by the command:
@@ -57,6 +68,8 @@ Open a pull request containing a small safe documentation or fixture change. In 
 - the mock provider status;
 - the deterministic policy result;
 - the uploaded `changelens-evidence-<run-id>` artifact.
+
+Confirm that the summary says `Analysis mode: pull_request` and shows the actual base/head commits and changed files; it should not select `safe-change` for the pull-request event.
 
 After the safe workflow has run, use **Actions → Run workflow** and select `infrastructure-security-regression` to demonstrate a blocking result. The artifact should still be available after the check fails.
 

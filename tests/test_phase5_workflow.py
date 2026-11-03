@@ -19,6 +19,7 @@ class Phase5WorkflowTests(unittest.TestCase):
 
     def test_environment_and_test_commands_are_explicit(self):
         self.assertIn("actions/checkout@v4", self.text)
+        self.assertIn("fetch-depth: 0", self.text)
         self.assertIn("actions/setup-python@v5", self.text)
         self.assertIn("actions/setup-java@v4", self.text)
         self.assertIn("mvn dependency:go-offline -B", self.text)
@@ -28,6 +29,7 @@ class Phase5WorkflowTests(unittest.TestCase):
             "python -m unittest tests.test_phase2_scenarios",
             "python -m unittest tests.test_phase3_control_plane",
             "python -m unittest tests.test_phase4_policy_analyst",
+            "python -m unittest tests.test_phase7_diff_analysis",
         ):
             self.assertIn(command, self.text)
 
@@ -37,6 +39,13 @@ class Phase5WorkflowTests(unittest.TestCase):
         self.assertIn("actions/upload-artifact@v4", self.text)
         self.assertIn("if: always()", self.text)
         self.assertIn("path: artifacts/", self.text)
+
+    def test_pull_requests_use_actual_base_and_head_analysis(self):
+        self.assertIn("if [ \"$GITHUB_EVENT_NAME\" = \"pull_request\" ]", self.text)
+        self.assertIn("python -m changelens analyze-pr --base-ref \"$BASE_SHA\" --head-ref \"$HEAD_SHA\"", self.text)
+        self.assertIn("BASE_SHA:", self.text)
+        self.assertIn("HEAD_SHA:", self.text)
+        self.assertNotIn("pull requests use safe-change by default", self.text)
 
     def test_policy_failure_is_enforced_after_reports_are_published(self):
         self.assertIn("name: Enforce deterministic policy", self.text)

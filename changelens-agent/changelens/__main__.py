@@ -11,7 +11,9 @@ from pathlib import Path
 
 from .models import Decision, EvidenceReport, ToolStatus
 from .analyst import analyze
+from .diff_analysis import DiffAnalysisError
 from .policy import evaluate
+from .pr_analysis import analyze_pull_request
 from .report import write_json, write_markdown
 from .scenarios import load_manifest, scenario_changed_files
 from .tools import (analyze_scenario, check_health, enrich_report, run_api_contract,
@@ -37,9 +39,24 @@ def main() -> int:
     run.add_argument("--scenario", required=True)
     run.add_argument("--base-url", default="http://localhost:8080")
     run.add_argument("--timeout", type=int, default=120)
+    for name, help_text in (("analyze-pr", "analyze committed pull-request base/head refs"),
+                            ("analyze-diff", "analyze committed local base/head refs")):
+        analysis = subparsers.add_parser(name, help=help_text)
+        analysis.add_argument("--base-ref", required=True)
+        analysis.add_argument("--head-ref", required=True)
+        analysis.add_argument("--timeout", type=int, default=120)
     args = parser.parse_args()
 
     root = repository_root()
+    if args.command in {"analyze-pr", "analyze-diff"}:
+        try:
+            report, evidence, markdown = analyze_pull_request(root, args.base_ref, args.head_ref, args.timeout)
+        except DiffAnalysisError as exc:
+            parser.error(str(exc))
+        print(json.dumps({"run_id": report.run_id, "evidence": str(evidence), "report": str(markdown),
+                          "analysis_mode": report.analysis_mode, "policy": report.policy.get("status")}, indent=2))
+        return 0 if report.policy.get("status") == Decision.APPROVE.value else 1
+
     scenarios = load_manifest(root / "fixtures" / "scenarios" / "manifest.json")
     if args.scenario not in scenarios:
         parser.error(f"unknown scenario {args.scenario!r}; choose from {', '.join(sorted(scenarios))}")

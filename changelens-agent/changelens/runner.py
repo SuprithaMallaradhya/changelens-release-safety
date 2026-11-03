@@ -20,6 +20,7 @@ def run_command(
     args: List[str],
     cwd: Path,
     timeout_seconds: int = 120,
+    env: dict[str, str] | None = None,
 ) -> ToolResult:
     """Run an argv command without a shell and preserve its outcome."""
     command = shlex.join(args)
@@ -29,7 +30,7 @@ def run_command(
         # without bound while retaining a useful prefix for the report.
         with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
             process = subprocess.Popen(args, cwd=str(cwd), stdout=stdout_file, stderr=stderr_file,
-                                       text=False, close_fds=True)
+                                       text=False, close_fds=True, env=env)
             timed_out = False
             try:
                 process.wait(timeout=timeout_seconds)

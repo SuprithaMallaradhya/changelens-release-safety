@@ -13,11 +13,16 @@ def write_json(report: EvidenceReport, destination: Path) -> None:
     destination.write_text(json.dumps(report.to_dict(), indent=2) + "\n")
 
 
-def write_markdown(report: EvidenceReport, scenario: Scenario, destination: Path) -> None:
+def write_markdown(report: EvidenceReport, scenario: Scenario | None, destination: Path) -> None:
     lines = [
         "# ChangeLens evidence report", "", f"- Scenario: `{report.scenario}`",
-        f"- Run ID: `{report.run_id}`", f"- Commit: `{report.commit_sha}`", "",
+        f"- Analysis mode: `{report.analysis_mode}`", f"- Run ID: `{report.run_id}`",
+        f"- Commit: `{report.commit_sha}`", f"- Base commit: `{report.base_commit_sha or 'not applicable'}`",
+        f"- Head commit: `{report.head_commit_sha or report.commit_sha}`",
+        f"- Merge base: `{report.merge_base_ref or 'not applicable'}`", "",
         "## Changed files", "", *[f"- `{path}`" for path in report.changed_files], "",
+        "## Diff summary", "", "```json", json.dumps(report.diff_summary, indent=2), "```", "",
+        "## Candidate workspace", "", "```json", json.dumps(report.candidate_workspace, indent=2), "```", "",
         "## Commands and tool status", "",
         "| Tool | Status | Exit code | Duration (ms) | Command |", "|---|---|---:|---:|---|",
     ]
@@ -29,8 +34,14 @@ def write_markdown(report: EvidenceReport, scenario: Scenario, destination: Path
               "## Performance results", "", "```json", json.dumps(report.performance, indent=2), "```", "",
               "## Deterministic policy", "", "```json", json.dumps(report.policy, indent=2), "```", "",
               "## AI evidence analyst", "", "```json", json.dumps(report.ai_analysis, indent=2), "```", "",
+              "## Skipped checks", "", *([f"- {item}" for item in report.skipped_checks] or ["- None recorded."]), "",
+              f"Cleanup status: `{report.cleanup_status}`", "",
               "## Errors and limitations", "", *([f"- {error}" for error in report.errors] or ["- None recorded."]), "",
-              "## Scenario evidence", "", f"Expected outcome: {scenario.expected_outcome}", "",
-              "Expected evidence:", "", *[f"- {item}" for item in scenario.expected_evidence], "",
-              "Artifacts: `evidence.json`, `report.md` in this run directory.", ""]
+              "## Scenario evidence", ""]
+    if scenario:
+        lines += [f"Expected outcome: {scenario.expected_outcome}", "", "Expected evidence:", "",
+                  *[f"- {item}" for item in scenario.expected_evidence], ""]
+    else:
+        lines += ["This report was generated from the actual base/head pull-request diff.", ""]
+    lines += ["Artifacts: `evidence.json`, `report.md` in this run directory.", ""]
     destination.write_text("\n".join(lines))

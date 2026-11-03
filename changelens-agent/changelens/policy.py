@@ -88,7 +88,7 @@ def evaluate(report: EvidenceReport, config: PolicyConfig | None = None) -> Poli
                                         increase, config.latency_review_min_increase, "ratio",
                                         ["performance.latency_increase_ratio"]))
             references.append("performance.latency_increase_ratio")
-    elif baseline_p95 is None or candidate_p95 is None:
+    elif (baseline_p95 is None or candidate_p95 is None) and report.analysis_mode != "pull_request":
         reasons.append(PolicyReason("performance_unavailable", "Candidate performance metrics were not available.",
                                     "unavailable", "required for approval", "metrics", ["performance"]))
         references.append("performance")
@@ -100,7 +100,9 @@ def evaluate(report: EvidenceReport, config: PolicyConfig | None = None) -> Poli
                                     "no medium/high findings", "findings", ["security_findings", "api_findings"]))
         references.extend(["security_findings", "api_findings"])
 
-    unavailable = [tool.name for tool in report.tools if tool.status in (ToolStatus.UNAVAILABLE, ToolStatus.TIMED_OUT)]
+    unavailable = [tool.name for tool in report.tools
+                   if tool.status in (ToolStatus.UNAVAILABLE, ToolStatus.TIMED_OUT)
+                   and tool.name not in report.skipped_checks]
     if unavailable:
         reasons.append(PolicyReason("required_evidence_unavailable", "One or more checks did not produce evidence.",
                                     unavailable, "no unavailable required checks", "tools", [f"tools.{name}" for name in unavailable]))

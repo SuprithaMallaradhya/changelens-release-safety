@@ -49,29 +49,34 @@ def check_health(base_url: str, timeout: int) -> ToolResult:
                           int((time.monotonic() - started) * 1000), "", str(exc))
 
 
-def run_maven(root: Path, timeout: int) -> ToolResult:
-    return run_command("maven-tests", ["mvn", "test"], root / "demo-app" / "order-api", timeout)
+def run_maven(root: Path, timeout: int, env=None) -> ToolResult:
+    return run_command("maven-tests", ["mvn", "test"], root / "demo-app" / "order-api", timeout, env)
 
 
-def run_security(root: Path, scenario: Scenario, timeout: int) -> ToolResult:
+def run_python_tests(root: Path, test_module: str, timeout: int, env=None) -> ToolResult:
+    return run_command(f"{test_module}-tests", [sys.executable, "-m", "unittest", test_module],
+                       root, timeout, env)
+
+
+def run_security(root: Path, scenario: Scenario, timeout: int, env=None) -> ToolResult:
     fixture = scenario.directory / "kubernetes.yaml"
     if not fixture.exists():
         return ToolResult("security-fixture-validator", "not applicable: no security fixture", ToolStatus.PASSED, 0, 0,
                           "No infrastructure security fixture for this scenario", "")
     return run_command("security-fixture-validator",
-                       [sys.executable, "tests/check_security_fixture.py", str(fixture.relative_to(root))], root, timeout)
+                       [sys.executable, "tests/check_security_fixture.py", str(fixture.relative_to(root))], root, timeout, env)
 
 
-def run_api_contract(root: Path, base_url: str, timeout: int) -> ToolResult:
+def run_api_contract(root: Path, base_url: str, timeout: int, env=None) -> ToolResult:
     return run_command("api-contract-check", [sys.executable, "tests/check_openapi_contract.py",
-                                               "--base-url", base_url], root, timeout)
+                                               "--base-url", base_url], root, timeout, env)
 
 
-def run_load_test(root: Path, base_url: str, output: Path, timeout: int) -> ToolResult:
+def run_load_test(root: Path, base_url: str, output: Path, timeout: int, env=None) -> ToolResult:
     output.parent.mkdir(parents=True, exist_ok=True)
     return run_command("baseline-load-test", [sys.executable, "load-tests/baseline.py", "--base-url", base_url,
                                                "--concurrency", "4", "--duration", "30", "--output", str(output)],
-                       root, timeout)
+                       root, timeout, env)
 
 
 def enrich_report(report: EvidenceReport, result: ToolResult) -> None:

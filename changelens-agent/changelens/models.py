@@ -12,6 +12,7 @@ class ToolStatus(str, Enum):
     FAILED = "failed"
     TIMED_OUT = "timed_out"
     UNAVAILABLE = "unavailable"
+    SKIPPED = "skipped"
 
 
 class Decision(str, Enum):
@@ -69,6 +70,14 @@ class EvidenceReport:
     errors: List[str] = field(default_factory=list)
     policy: Dict[str, Any] = field(default_factory=dict)
     ai_analysis: Dict[str, Any] = field(default_factory=dict)
+    analysis_mode: str = "scenario"
+    base_commit_sha: Optional[str] = None
+    head_commit_sha: Optional[str] = None
+    merge_base_ref: Optional[str] = None
+    diff_summary: Dict[str, Any] = field(default_factory=dict)
+    candidate_workspace: Dict[str, Any] = field(default_factory=dict)
+    skipped_checks: List[str] = field(default_factory=list)
+    cleanup_status: str = "not_applicable"
 
     def to_dict(self) -> Dict[str, Any]:
         value = asdict(self)

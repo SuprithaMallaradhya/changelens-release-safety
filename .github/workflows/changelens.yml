@@ -29,10 +29,15 @@ jobs:
       CHANGELENS_MODEL_PROVIDER: mock
       SCENARIO: ${{ inputs.scenario || 'safe-change' }}
       PR_IDENTIFIER: ${{ github.event.pull_request.number || 'manual' }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -76,6 +81,10 @@ jobs:
         continue-on-error: true
         run: python -m unittest tests.test_phase4_policy_analyst
 
+      - name: Run Phase 7 tests
+        continue-on-error: true
+        run: python -m unittest tests.test_phase7_diff_analysis
+
       - name: Run ChangeLens
         id: run_changelens
         continue-on-error: true
@@ -83,7 +92,11 @@ jobs:
           set -uo pipefail
           output_file="$RUNNER_TEMP/changelens-cli-output.json"
           set +e
-          python -m changelens run --scenario "$SCENARIO" > "$output_file"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            python -m changelens analyze-pr --base-ref "$BASE_SHA" --head-ref "$HEAD_SHA" > "$output_file"
+          else
+            python -m changelens run --scenario "$SCENARIO" > "$output_file"
+          fi
           cli_status=$?
           set -e
           echo "cli_exit_code=$cli_status" >> "$GITHUB_OUTPUT"
@@ -129,6 +142,9 @@ jobs:
           print()
           print(f"- Pull request: `{os.environ.get('PR_IDENTIFIER', 'unknown')}`")
           print(f"- Scenario: `{evidence.get('scenario', 'unknown')}`")
+          print(f"- Analysis mode: `{evidence.get('analysis_mode', 'scenario')}`")
+          print(f"- Base commit: `{evidence.get('base_commit_sha', 'not applicable')}`")
+          print(f"- Head commit: `{evidence.get('head_commit_sha', evidence.get('commit_sha', 'unknown'))}`")
           print(f"- Commit: `{evidence.get('commit_sha', 'unknown')}`")
           print(f"- Deterministic policy: **{policy.get('status', 'UNKNOWN')}**")
           print(f"- AI decision: **{ai.get('decision', 'UNKNOWN')}** ({ai.get('provider', 'unknown')})")

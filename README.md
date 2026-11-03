@@ -53,6 +53,15 @@ PYTHONPATH=changelens-agent python3 -m changelens run --scenario safe-change
 
 Replace `safe-change` with any scenario name in the manifest. Each run creates ignored artifacts at `artifacts/<run-id>/evidence.json` and `artifacts/<run-id>/report.md`. The report records command output, exit codes, durations, timeouts, unavailable services, test results, security findings, API findings, and load-test metrics when the application is reachable.
 
+Analyze committed pull-request code using the actual base/head diff:
+
+```bash
+PYTHONPATH=changelens-agent python3 -m changelens analyze-diff \
+  --base-ref main --head-ref HEAD
+```
+
+The workflow uses the equivalent command with `analyze-pr --base-ref <base-commit> --head-ref <head-commit>`. The head commit is exported into a temporary isolated workspace; the current working tree is not modified. Evidence records the real changed files, commit SHAs, diff summary, skipped runtime checks, and cleanup status. The existing scenario command remains available for fixture testing.
+
 Run the Phase 3 unit and integration tests with:
 
 ```bash
@@ -91,9 +100,9 @@ Rollback is proposed as text only. ChangeLens does not execute rollback or deplo
 
 ## Pull-request workflow
 
-The [`ChangeLens pull-request safety`](.github/workflows/changelens.yml) workflow runs on opened, reopened, and synchronized pull requests. It sets up Python and Java, runs the Phase 1–4 tests, runs the control plane, uploads `artifacts/` as a workflow artifact, and publishes a concise report in the GitHub Actions workflow summary.
+The [`ChangeLens pull-request safety`](.github/workflows/changelens.yml) workflow runs on opened, reopened, and synchronized pull requests. It fetches the base and head commits, analyzes the actual pull-request diff, runs candidate checks in an isolated archive workspace, uploads `artifacts/` as a workflow artifact, and publishes a concise report in the GitHub Actions workflow summary.
 
-The workflow uses the mock analyst by default and requires no API key or cloud credentials. `APPROVE` succeeds, `REVIEW` succeeds with a human-review warning, and `BLOCK` uploads the evidence first and then fails the required check. The workflow currently runs the selected manifest scenario (`safe-change` by default) because the local control plane does not yet analyze arbitrary pull-request diffs or apply candidate patches. `workflow_dispatch` allows selecting another documented scenario without modifying the repository.
+The workflow uses the mock analyst by default and requires no API key or cloud credentials. `APPROVE` succeeds, `REVIEW` succeeds with a human-review warning, and `BLOCK` uploads the evidence first and then fails the required check. Pull-request runs do not require manual scenario selection. `workflow_dispatch` retains manifest-scenario selection for deterministic fixture testing. Static candidate checks run automatically; application health, API contract, and load checks are explicitly recorded as skipped in isolated PR mode.
 
 To inspect a result, open the pull request's **Checks** tab and select the workflow summary. To download the full `evidence.json` and `report.md`, open the workflow run and download `changelens-evidence-<run-id>` under **Artifacts**. The workflow has only `contents: read` permission because it uses the workflow summary rather than posting a pull-request comment.
 
@@ -135,7 +144,8 @@ For a reproducible benchmark, record the operating system, CPU/memory, tool vers
 
 - Completed: demo application, five reproducible scenarios, fixed local load test, evidence-producing control plane, deterministic policy engine, provider-neutral analyst, and pull-request GitHub Actions workflow.
 - Supported scenarios: safe change, performance regression, API compatibility regression, reliability regression, and infrastructure/security regression.
-- Local limitation: the control plane validates named scenario patches and does not yet derive or apply arbitrary pull-request candidates.
+- Local limitation: scenario mode validates named fixture patches, while PR mode analyzes committed base/head diffs in a temporary archive workspace.
+- Untrusted-code limitation: candidate tests execute locally in the isolated workspace; forked or untrusted pull requests still require repository security review.
 - Runtime limitation: live API/load evidence requires the Docker Compose stack; otherwise the report records unavailable checks and policy generally returns `REVIEW`.
 - Cloud status: no AWS, Azure, or Google Cloud resources are included.
 - AI status: deterministic mock mode is the default; an explicitly configured OpenAI-compatible provider is optional and cannot override policy.
