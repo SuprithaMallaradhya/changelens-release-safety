@@ -6,7 +6,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 public final class OrderDtos {
-    private OrderDtos() { }
+    private OrderDtos() {
+    }
 
     public static class CreateRequest {
         @NotBlank public String customerId;
@@ -21,10 +22,12 @@ public final class OrderDtos {
         public int quantity;
         public OrderStatus status;
         public Instant createdAt;
+        public String confirmationMessage;
 
         public Response(Order order) {
             id = order.getId(); customerId = order.getCustomerId(); sku = order.getSku();
             quantity = order.getQuantity(); status = order.getStatus(); createdAt = order.getCreatedAt();
+            confirmationMessage = "Order created successfully";
         }
     }
 }
