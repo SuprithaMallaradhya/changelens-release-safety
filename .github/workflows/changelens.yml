@@ -85,6 +85,10 @@ jobs:
         continue-on-error: true
         run: python -m unittest tests.test_phase7_diff_analysis
 
+      - name: Run Phase 8 tests
+        continue-on-error: true
+        run: python -m unittest tests.test_phase8_release_hardening
+
       - name: Run ChangeLens
         id: run_changelens
         continue-on-error: true
@@ -207,7 +211,7 @@ jobs:
               echo "ChangeLens policy approved the change."
               ;;
             REVIEW)
-              echo "ChangeLens policy requires human review; workflow remains successful."
+              echo "::warning::ChangeLens policy requires human review; workflow remains successful."
               ;;
             BLOCK)
               echo "ChangeLens policy blocked the change." >&2

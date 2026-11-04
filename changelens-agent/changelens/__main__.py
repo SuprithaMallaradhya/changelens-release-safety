@@ -55,7 +55,9 @@ def main() -> int:
             parser.error(str(exc))
         print(json.dumps({"run_id": report.run_id, "evidence": str(evidence), "report": str(markdown),
                           "analysis_mode": report.analysis_mode, "policy": report.policy.get("status")}, indent=2))
-        return 0 if report.policy.get("status") == Decision.APPROVE.value else 1
+        # REVIEW is a successful workflow outcome with an explicit human-review
+        # warning; only a deterministic BLOCK fails the required check.
+        return policy_exit_code(report.policy.get("status"))
 
     scenarios = load_manifest(root / "fixtures" / "scenarios" / "manifest.json")
     if args.scenario not in scenarios:
@@ -93,9 +95,14 @@ def main() -> int:
     write_markdown(report, scenario, artifact_dir / "report.md")
     print(json.dumps({"run_id": run_id, "evidence": str(artifact_dir / "evidence.json"),
                       "report": str(artifact_dir / "report.md")}, indent=2))
-    tool_failure = any(tool.status in (ToolStatus.FAILED, ToolStatus.TIMED_OUT, ToolStatus.UNAVAILABLE)
-                       for tool in report.tools)
-    return 0 if policy.status == Decision.APPROVE and not tool_failure else 1
+    # REVIEW is intentionally non-failing: the report carries the missing or
+    # ambiguous evidence and the workflow emits the human-review warning.
+    return policy_exit_code(policy.status.value)
+
+
+def policy_exit_code(status: str) -> int:
+    """Map policy outcomes to CI semantics: only BLOCK fails the check."""
+    return 1 if status == Decision.BLOCK.value else 0
 
 
 def _unavailable(name: str, reason: str):

@@ -93,6 +93,12 @@ def enrich_report(report: EvidenceReport, result: ToolResult) -> None:
         if match:
             report.tests.update({"run": int(match.group(1)), "failed": int(match.group(2)),
                                  "errors": int(match.group(3)), "skipped": int(match.group(4))})
+        details = re.findall(r"^\[ERROR\]\s+([^\n]+?)\s+Time elapsed: [^\n]+<<< FAILURE!$",
+                             result.stdout, flags=re.MULTILINE)
+        details.extend(re.findall(r"^\[ERROR\]\s+([^\n]*(?:AssertionError|PathNotFoundException)[^\n]*)$",
+                                  result.stdout, flags=re.MULTILINE))
+        if details:
+            report.tests["failure_details"] = list(dict.fromkeys(item.strip() for item in details))[:20]
     elif result.name == "security-fixture-validator":
         report.security_findings.extend(line[2:] for line in result.stdout.splitlines() if line.startswith("- "))
     elif result.name == "api-contract-check":
