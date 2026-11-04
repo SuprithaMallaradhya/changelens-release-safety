@@ -142,7 +142,9 @@ For a reproducible benchmark, record the operating system, CPU/memory, tool vers
 
 ## Current status
 
-- Completed: demo application, five reproducible scenarios, fixed local load test, evidence-producing control plane, deterministic policy engine, provider-neutral analyst, and pull-request GitHub Actions workflow.
+- Completed: demo application, five reproducible scenarios, fixed local load test, evidence-producing control plane, deterministic policy engine, provider-neutral analyst, pull-request GitHub Actions workflow, and Phase 8 release hardening.
+- Phase 8 verified results: a safe candidate based on `origin/main` plus the safe fixture returned `APPROVE` with exit code 0; the committed `test/phase7-breaking-api` candidate returned `BLOCK` with exit code 1 and identified the missing `status` field; performance and reliability scenario checks returned `REVIEW` with exit code 0 when the local runtime was unavailable; the infrastructure/security fixture returned `BLOCK` with exit code 1 and preserved all three findings.
+- Phase 8 report improvements: Markdown reports now show readable policy rule names, exact candidate test/finding details, remediation guidance, and a separate infrastructure/tool availability section. `REVIEW` emits a workflow warning and succeeds; `BLOCK` uploads evidence before failing enforcement.
 - Supported scenarios: safe change, performance regression, API compatibility regression, reliability regression, and infrastructure/security regression.
 - Local limitation: scenario mode validates named fixture patches, while PR mode analyzes committed base/head diffs in a temporary archive workspace.
 - Untrusted-code limitation: candidate tests execute locally in the isolated workspace; forked or untrusted pull requests still require repository security review.

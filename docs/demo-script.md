@@ -2,6 +2,20 @@
 
 This script is a repeatable portfolio demonstration. Run it from a clean checkout and record actual run IDs and measured values instead of copying example numbers.
 
+## Phase 8 verified decision matrix
+
+The following results were verified locally on 2026-11-04 using an isolated baseline archive for safe and scenario validation. The intentionally breaking branch was not modified.
+
+| Validation | Result | Process outcome |
+|---|---|---:|
+| Safe fixture applied to the `origin/main` baseline and analyzed as a real base/head diff | `APPROVE` | exit 0 |
+| `test/phase7-breaking-api` analyzed from `main` to `HEAD` | `BLOCK` | exit 1 |
+| Performance scenario without a running candidate stack | `REVIEW` | exit 0 |
+| Reliability scenario without a running candidate stack | `REVIEW` | exit 0 |
+| Infrastructure/security scenario | `BLOCK` | exit 1 |
+
+`REVIEW` is successful but emits a human-review warning in GitHub Actions. `BLOCK` publishes the summary and uploads the evidence artifact before the final enforcement step fails. Runtime-dependent performance and reliability behavior still requires Docker Compose and a measured candidate workload.
+
 ## 1. Prepare
 
 ```bash

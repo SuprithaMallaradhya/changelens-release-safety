@@ -8,6 +8,43 @@ from typing import Any, Dict, Iterable, List
 from .models import Decision, EvidenceReport, PolicyReason, PolicyResult, ToolStatus
 
 
+RULE_LABELS = {
+    "critical_security_finding": "Critical security finding",
+    "security_validation_failure": "Security validation failure",
+    "api_contract_failure": "Required API contract failed",
+    "api_contract_findings": "API compatibility finding",
+    "required_tests_failed": "Required candidate tests failed",
+    "error_rate_limit": "Candidate error rate exceeded limit",
+    "p95_latency_limit": "Candidate p95 latency exceeded limit",
+    "p95_latency_review": "Candidate p95 latency requires review",
+    "performance_unavailable": "Candidate performance evidence unavailable",
+    "medium_high_finding": "Medium/high finding requires review",
+    "required_evidence_unavailable": "Required evidence unavailable",
+}
+
+RULE_GUIDANCE = {
+    "critical_security_finding": "Remediate the critical security finding and rerun the security checks.",
+    "security_validation_failure": "Remove the unsafe infrastructure setting, then rerun the security validator.",
+    "api_contract_failure": "Restore the required API contract or update it through a deliberate compatible change.",
+    "api_contract_findings": "Resolve the API compatibility finding and rerun the contract check.",
+    "required_tests_failed": "Fix the failing candidate test before release; do not treat a test failure as a tooling pass.",
+    "error_rate_limit": "Investigate the candidate errors, correct the regression, and rerun the workload.",
+    "p95_latency_limit": "Restore or optimize the regressed execution path and rerun the comparison workload.",
+    "p95_latency_review": "Review the latency increase with the owning team and collect comparable workload evidence.",
+    "performance_unavailable": "Start the candidate runtime and collect baseline/candidate performance evidence.",
+    "medium_high_finding": "Resolve or explicitly accept the finding through human review before release.",
+    "required_evidence_unavailable": "Restore the unavailable tool or service and rerun the affected check.",
+}
+
+
+def rule_label(rule: str) -> str:
+    return RULE_LABELS.get(rule, rule.replace("_", " ").capitalize())
+
+
+def rule_guidance(rule: str) -> str:
+    return RULE_GUIDANCE.get(rule, "Investigate the rule evidence and rerun ChangeLens before release.")
+
+
 @dataclass(frozen=True)
 class PolicyConfig:
     version: str = "1.0"
